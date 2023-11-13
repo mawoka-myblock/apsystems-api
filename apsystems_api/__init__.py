@@ -10,7 +10,11 @@ class WrongLogin(Exception):
 
 
 class UnknownError(Exception):
-    pass
+    def __init__(self, http_code: int, code: int | None, body: dict | None):
+        self.code = code
+        self.http_code = http_code
+        self.body = body
+        super().__init__(f"UnknownError - Code: {code}, Body: {body}")
 
 
 class DeviceOffline(Exception):
@@ -19,12 +23,14 @@ class DeviceOffline(Exception):
 
 async def _process_response(resp: ClientResponse) -> dict:
     if not resp.ok:
-        raise UnknownError()
+        raise UnknownError(resp.status, None, None)
     data = await resp.json()
     if data["code"] == 2006:
         raise WrongLogin()
+    elif data["code"] == 1001:
+        raise DeviceOffline()
     elif data["code"] != 0:
-        raise UnknownError()
+        raise UnknownError(resp.status, data["code"], data)
     return data["data"]
 
 
@@ -79,7 +85,7 @@ class Api:
             data = await _process_response(resp)
             return_list = []
             for i in data["inverter"]:
-                return_list.append(self._ListInvertersResponse.model_validate(i))
+                return_list.append(self._ListInvertersResponse.parse_obj(i))
             return return_list
 
     class _InverterStatus(BaseModel):
@@ -91,7 +97,7 @@ class Api:
                 f"{self.base_url}/aps-api-web/api/v2/data/device/ezInverter/status/{inverter}?language={self.language}",
                 headers={"Authorization": f"Bearer {self.access_token}"}, timeout=5) as resp:
             data = await _process_response(resp)
-            return self._InverterStatus.model_validate(data)
+            return self._InverterStatus.parse_obj(data)
 
     class _InverterStatistics(BaseModel):
         lastReportDatetime: datetime
@@ -139,7 +145,7 @@ class Api:
                                           inverter_dev_id=d["inverter_dev_id"],
                                           power=d["power"], type=d["type"], energy=float(d["energy"]))
 
-    class __Graph(BaseModel):
+    class _Graph(BaseModel):
         peakPower: str
         totalEnergy: float
         power: list[str]
@@ -164,13 +170,20 @@ class Api:
                 f"{self.base_url}/aps-api-web/api/v2/data/device/ezInverter/{d_range}/{inverter}/{date_str}?language={self.language}",
                 headers={"Authorization": f"Bearer {self.access_token}"}, timeout=5) as resp:
             d = await _process_response(resp)
-            return self.__Graph(peakPower=d["peakPower"], totalEnergy=float(d["totalEnergy"]), power=d["power"],
-                                time=d["time"], energy=d["energy"])
+            return self._Graph(peakPower=d.get("peakPower", None), totalEnergy=float(d["totalEnergy"]),
+                               power=d["power"],
+                               time=d["time"], energy=d["energy"])
+
+    class _LifetimeGraph(BaseModel):
+        year: list[str]
+        totalEnergy: float
+        averageEnergy: float
+        energy: list[str]
 
     async def get_lifetime_graph(self, inverter: str):
         async with ClientSession() as c, c.get(
                 f"{self.base_url}/aps-api-web/api/v2/data/device/ezInverter/lifetime/{inverter}?language={self.language}",
                 headers={"Authorization": f"Bearer {self.access_token}"}, timeout=5) as resp:
             d = await _process_response(resp)
-            return self.__Graph(peakPower=d["peakPower"], totalEnergy=float(d["totalEnergy"]), power=d["power"],
-                                time=d["time"], energy=d["energy"])
+            return self._LifetimeGraph(year=d["year"], totalEnergy=float(d["totalEnergy"]),
+                                       averageEnergy=float(d["averageEnergy"]), energy=d["energy"])
