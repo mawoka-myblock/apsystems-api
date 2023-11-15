@@ -14,10 +14,14 @@ class UnknownError(Exception):
         self.code = code
         self.http_code = http_code
         self.body = body
-        super().__init__(f"UnknownError - Code: {code}, Body: {body}")
+        super().__init__(f"UnknownError - HTTP Code: {http_code} Code: {code}, Body: {body}")
 
 
 class DeviceOffline(Exception):
+    pass
+
+
+class TokenExpired(Exception):
     pass
 
 
@@ -29,6 +33,8 @@ async def _process_response(resp: ClientResponse) -> dict:
         raise WrongLogin()
     elif data["code"] == 1001:
         raise DeviceOffline()
+    elif data["code"] == 3003:
+        raise TokenExpired()
     elif data["code"] != 0:
         raise UnknownError(resp.status, data["code"], data)
     return data["data"]
@@ -191,6 +197,7 @@ class Api:
     async def refresh_login(self):
         formData = FormData({"language": self.language, "refresh_token": self.refresh_token})
         async with ClientSession() as c, c.post(f"{self.base_url}/api/token/refreshToken?language={self.language}",
-                                                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=5) as resp:
+                                                headers={"Authorization": f"Bearer {self.access_token}"},
+                                                timeout=5) as resp:
             d = await _process_response(resp)
             self.access_token = d["access_token"]
