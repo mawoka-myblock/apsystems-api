@@ -197,7 +197,7 @@ class Api:
     async def refresh_login(self):
         formData = FormData({"language": self.language, "refresh_token": self.refresh_token})
         async with ClientSession() as c, c.post(f"{self.base_url}/api/token/refreshToken?language={self.language}",
-                                                headers={"Authorization": f"Bearer {self.access_token}"},
+                                                headers={"Authorization": f"Bearer {self.access_token}"}, data=formData,
                                                 timeout=5) as resp:
             d = await _process_response(resp)
             self.access_token = d["access_token"]
