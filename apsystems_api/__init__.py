@@ -69,7 +69,7 @@ class Api:
              "username": username})
         async with ClientSession() as c, c.post(
                 f"{self.base_url}/api/token/generateToken/user/login?language={self.language}",
-                data=formData, timeout=5) as resp:
+                data=formData, timeout=15) as resp:
             data = await _process_response(resp)
             self.access_token = data["access_token"]
             self.refresh_token = data["refresh_token"]
@@ -87,7 +87,7 @@ class Api:
     async def list_inverters(self) -> list[_ListInvertersResponse]:
         async with ClientSession() as c, c.get(
                 f"{self.base_url}/aps-api-web/api/v2/data/device/ezInverter/list/{self.user_id}?language={self.language}&systemId={self.user_id}",
-                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=5) as resp:
+                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=15) as resp:
             data = await _process_response(resp)
             return_list = []
             for i in data["inverter"]:
@@ -101,7 +101,7 @@ class Api:
     async def get_inverter_status(self, inverter: str) -> _InverterStatus:
         async with ClientSession() as c, c.get(
                 f"{self.base_url}/aps-api-web/api/v2/data/device/ezInverter/status/{inverter}?language={self.language}",
-                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=5) as resp:
+                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=15) as resp:
             data = await _process_response(resp)
             return self._InverterStatus.parse_obj(data)
 
@@ -121,7 +121,7 @@ class Api:
     async def get_inverter_statistics(self, inverter: str):
         async with ClientSession() as c, c.get(
                 f"{self.base_url}/aps-api-web/api/v2/data/device/ezInverter/statistic/{inverter}?language={self.language}",
-                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=5) as resp:
+                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=15) as resp:
             i_data = await _process_response(resp)
             date_format = "%Y-%m-%d %H:%M:%S"
             return self._InverterStatistics(
@@ -144,7 +144,7 @@ class Api:
     async def get_inverter_realtime(self, inverter: str):
         async with ClientSession() as c, c.get(
                 f"{self.base_url}/aps-api-web/api/v2/data/device/ezInverter/realTime/{inverter}?language={self.language}",
-                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=5) as resp:
+                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=15) as resp:
             d = await _process_response(resp)
             return self._InverterRealtime(communicationStatus=d["communicationStatus"],
                                           runningDuration=d["runningDuration"], runningStatus=d["runningStatus"],
@@ -174,7 +174,7 @@ class Api:
             date_str += str(month) + str(day)
         async with ClientSession() as c, c.get(
                 f"{self.base_url}/aps-api-web/api/v2/data/device/ezInverter/{d_range}/{inverter}/{date_str}?language={self.language}",
-                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=5) as resp:
+                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=15) as resp:
             d = await _process_response(resp)
             return self._Graph(peakPower=d.get("peakPower", None), totalEnergy=float(d["totalEnergy"]),
                                power=d["power"],
@@ -189,7 +189,7 @@ class Api:
     async def get_lifetime_graph(self, inverter: str):
         async with ClientSession() as c, c.get(
                 f"{self.base_url}/aps-api-web/api/v2/data/device/ezInverter/lifetime/{inverter}?language={self.language}",
-                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=5) as resp:
+                headers={"Authorization": f"Bearer {self.access_token}"}, timeout=15) as resp:
             d = await _process_response(resp)
             return self._LifetimeGraph(year=d["year"], totalEnergy=float(d["totalEnergy"]),
                                        averageEnergy=float(d["averageEnergy"]), energy=d["energy"])
@@ -198,6 +198,6 @@ class Api:
         formData = FormData({"language": self.language, "refresh_token": self.refresh_token})
         async with ClientSession() as c, c.post(f"{self.base_url}/api/token/refreshToken?language={self.language}",
                                                 headers={"Authorization": f"Bearer {self.access_token}"}, data=formData,
-                                                timeout=5) as resp:
+                                                timeout=15) as resp:
             d = await _process_response(resp)
             self.access_token = d["access_token"]
